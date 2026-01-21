@@ -1,0 +1,9 @@
+{
+  "include": ["."],
+  "extraPaths": ["../eclipse_scalper"],
+  "pythonVersion": "3.13",
+  "typeCheckingMode": "basic",
+  "reportMissingImports": "warning",
+  "reportUnusedImport": "none",
+  "reportUnusedVariable": "none"
+}

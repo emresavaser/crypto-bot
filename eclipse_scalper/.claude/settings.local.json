@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install:*)",
+      "Bash(set SCALPER_DRY_RUN=0)",
+      "Bash(set SCALPER_SIGNAL_PROFILE=micro)",
+      "Bash(set SCALPER_SIGNAL_DIAG=1)",
+      "Bash(set ACTIVE_SYMBOLS=DOGEUSDT)",
+      "Bash(set FIXED_NOTIONAL_USDT=6)",
+      "Bash(set:*)",
+      "Bash(set FIRST_LIVE_SYMBOLS=DOGEUSDT)",
+      "Bash(set MARGIN_MODE=isolated)",
+      "Bash(set LEVERAGE=1)",
+      "Bash(set POSMGR_ENSURE_STOP=0)",
+      "Bash(python -m execution.bootstrap:*)",
+      "Bash(copy:*)",
+      "Bash(python:*)",
+      "Bash(pip uninstall:*)",
+      "Bash(dir:*)",
+      "Bash(findstr:*)",
+      "Bash(echo:*)"
+    ]
+  }
+}

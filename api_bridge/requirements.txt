@@ -1,0 +1,18 @@
+# API Bridge Requirements
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+websockets>=12.0
+python-dotenv>=1.0.0
+pydantic>=2.5.0
+
+# Eclipse Scalper'ın ihtiyaçları (ortak)
+ccxt>=4.5.24
+pandas>=2.1.0
+pandas-ta>=0.3.14b
+numpy>=1.24.0
+aiofiles>=23.2.0
+msgpack>=1.0.7
+lz4>=4.3.2
+python-telegram-bot>=20.7
+ta>=0.11.0
+scipy>=1.11.0
