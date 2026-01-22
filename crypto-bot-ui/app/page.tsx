@@ -7,6 +7,7 @@ import BalanceCard from '@/components/BalanceCard';
 import TradeButtons from '@/components/TradeButtons';
 import BotSwitch from '@/components/BotSwitch';
 import BotControlPanel from '@/components/BotControlPanel';
+import ModuleStatusPanel from '@/components/ModuleStatusPanel';
 import TradeHistory from '@/components/TradeHistory';
 import PositionsPanel from '@/components/PositionsPanel';
 import LogsPanel from '@/components/LogsPanel';
@@ -154,6 +155,7 @@ export default function Home() {
           <div className="space-y-6">
             <BotSwitch />
             <BotControlPanel />
+            <ModuleStatusPanel />
             <BalanceCard onLoginClick={() => setShowLoginModal(true)} />
             <TradeButtons symbol={selectedPair} currentPrice={currentPrice} />
           </div>

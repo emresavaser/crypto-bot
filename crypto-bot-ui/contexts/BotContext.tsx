@@ -81,6 +81,15 @@ interface LogEntry {
   message: string;
 }
 
+interface ModuleStatus {
+  name: string;
+  display_name: string;
+  available: boolean;
+  running: boolean;
+  error: string | null;
+  last_update: string | null;
+}
+
 interface BotContextType {
   stats: BotStats;
   config: BotConfig;
@@ -89,6 +98,7 @@ interface BotContextType {
   isConnected: boolean;
   signals: Signal[];
   logs: LogEntry[];
+  modules: ModuleStatus[];
   startBot: () => Promise<boolean>;
   stopBot: () => Promise<void>;
   updateConfig: (config: Partial<BotConfig>) => void;
@@ -159,6 +169,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
   const [isConnected, setIsConnected] = useState(false);
   const [signals, setSignals] = useState<Signal[]>([]);
   const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [modules, setModules] = useState<ModuleStatus[]>([]);
 
   const addLog = useCallback((level: LogEntry['level'], message: string) => {
     const entry: LogEntry = {
@@ -313,6 +324,25 @@ export function BotProvider({ children }: { children: ReactNode }) {
                 };
                 return [newSignal, ...prev.filter(s => s.timestamp !== signal.timestamp)].slice(0, 20);
               });
+              break;
+
+            case 'module_status':
+              // Tek modül durumu güncellemesi
+              const moduleData = message.data;
+              setModules(prev => {
+                const idx = prev.findIndex(m => m.name === moduleData.name);
+                if (idx >= 0) {
+                  const updated = [...prev];
+                  updated[idx] = moduleData;
+                  return updated;
+                }
+                return [...prev, moduleData];
+              });
+              break;
+
+            case 'modules_init':
+              // Tüm modül durumlarını al
+              setModules(message.data || []);
               break;
           }
         } catch (error) {
@@ -480,6 +510,7 @@ export function BotProvider({ children }: { children: ReactNode }) {
     isConnected,
     signals,
     logs,
+    modules,
     startBot,
     stopBot,
     updateConfig,

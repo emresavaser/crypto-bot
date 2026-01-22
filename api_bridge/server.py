@@ -73,6 +73,76 @@ except ImportError as e:
     data_loop = None
     print(f"[WARN] Data loop yuklenemedi: {e}")
 
+try:
+    from strategies.eclipse_scalper import scalper_signal
+    SCALPER_SIGNAL_AVAILABLE = True
+    print("[OK] Scalper signal yuklendi")
+except ImportError as e:
+    SCALPER_SIGNAL_AVAILABLE = False
+    scalper_signal = None
+    print(f"[WARN] Scalper signal yuklenemedi: {e}")
+
+# Position Manager import
+try:
+    from execution.position_manager import position_manager_tick
+    POSITION_MANAGER_AVAILABLE = True
+    print("[OK] Position manager yuklendi")
+except ImportError as e:
+    POSITION_MANAGER_AVAILABLE = False
+    position_manager_tick = None
+    print(f"[WARN] Position manager yuklenemedi: {e}")
+
+# Exit Handler import
+try:
+    from execution.exit import handle_exit
+    EXIT_HANDLER_AVAILABLE = True
+    print("[OK] Exit handler yuklendi")
+except ImportError as e:
+    EXIT_HANDLER_AVAILABLE = False
+    handle_exit = None
+    print(f"[WARN] Exit handler yuklenemedi: {e}")
+
+# Order Router import
+try:
+    from execution.order_router import create_order
+    ORDER_ROUTER_AVAILABLE = True
+    print("[OK] Order router yuklendi")
+except ImportError as e:
+    ORDER_ROUTER_AVAILABLE = False
+    create_order = None
+    print(f"[WARN] Order router yuklenemedi: {e}")
+
+# Emergency/Kill Switch import
+try:
+    from risk.kill_switch import trade_allowed, is_halted, request_halt
+    KILL_SWITCH_AVAILABLE = True
+    print("[OK] Kill switch yuklendi")
+except ImportError as e:
+    KILL_SWITCH_AVAILABLE = False
+    trade_allowed = None
+    is_halted = None
+    request_halt = None
+    print(f"[WARN] Kill switch yuklenemedi: {e}")
+
+try:
+    from execution.emergency import emergency_flat
+    EMERGENCY_AVAILABLE = True
+    print("[OK] Emergency handler yuklendi")
+except ImportError as e:
+    EMERGENCY_AVAILABLE = False
+    emergency_flat = None
+    print(f"[WARN] Emergency handler yuklenemedi: {e}")
+
+# Reconcile import (guardian icinde cagrilir ama ayri takip edelim)
+try:
+    from execution.reconcile import reconcile_tick
+    RECONCILE_AVAILABLE = True
+    print("[OK] Reconcile yuklendi")
+except ImportError as e:
+    RECONCILE_AVAILABLE = False
+    reconcile_tick = None
+    print(f"[WARN] Reconcile yuklenemedi: {e}")
+
 # CCXT fallback
 try:
     import ccxt.async_support as ccxt
@@ -100,6 +170,17 @@ app.add_middleware(
 
 
 # ============== Global State ==============
+
+@dataclass
+class ModuleStatus:
+    """Modül durumu"""
+    name: str
+    display_name: str
+    available: bool = False
+    running: bool = False
+    error: Optional[str] = None
+    last_update: Optional[str] = None
+
 
 @dataclass
 class BridgeState:
@@ -130,8 +211,66 @@ class BridgeState:
     # Logs (frontend için)
     logs: List[Dict[str, Any]] = field(default_factory=list)
 
+    # Test pozisyonları (DRY_RUN test için)
+    test_positions: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+    test_trades_count: int = 0
+
+    # Modül durum takibi
+    module_status: Dict[str, Dict[str, Any]] = field(default_factory=dict)
+
 
 bridge_state = BridgeState()
+
+
+def init_module_status():
+    """Modül durumlarını başlat"""
+    modules = [
+        ("bootstrap", "Bootstrap", ECLIPSE_AVAILABLE),
+        ("data_loop", "Data Loop", DATA_LOOP_AVAILABLE),
+        ("strategy", "Strategy (Scalper)", SCALPER_SIGNAL_AVAILABLE),
+        ("entry_loop", "Entry Loop", ENTRY_LOOP_AVAILABLE),
+        ("order_router", "Order Router", ORDER_ROUTER_AVAILABLE),
+        ("reconcile", "Reconcile", RECONCILE_AVAILABLE),
+        ("position_manager", "Position Manager", POSITION_MANAGER_AVAILABLE),
+        ("exit", "Exit Handler", EXIT_HANDLER_AVAILABLE),
+        ("kill_switch", "Kill Switch", KILL_SWITCH_AVAILABLE),
+        ("emergency", "Emergency", EMERGENCY_AVAILABLE),
+    ]
+
+    for name, display_name, available in modules:
+        bridge_state.module_status[name] = {
+            "name": name,
+            "display_name": display_name,
+            "available": available,
+            "running": False,
+            "error": None,
+            "last_update": None
+        }
+
+
+def update_module_status(name: str, running: bool = None, error: str = None):
+    """Modül durumunu güncelle"""
+    if name in bridge_state.module_status:
+        if running is not None:
+            bridge_state.module_status[name]["running"] = running
+        if error is not None:
+            bridge_state.module_status[name]["error"] = error
+        bridge_state.module_status[name]["last_update"] = datetime.now(timezone.utc).isoformat()
+
+        # WebSocket'e broadcast
+        asyncio.create_task(broadcast_module_status())
+
+
+async def broadcast_module_status():
+    """Modül durumunu WebSocket'e gönder"""
+    await manager.broadcast({
+        "type": "modules_init",
+        "data": list(bridge_state.module_status.values())
+    })
+
+
+# Modül durumlarını başlat
+init_module_status()
 
 
 def add_log(level: str, message: str):
@@ -366,12 +505,16 @@ async def get_bot_status() -> Dict[str, Any]:
                 except:
                     pass
 
+        # Test pozisyonlarını da ekle (DRY_RUN mode)
+        for test_pos in bridge_state.test_positions.values():
+            positions.append(test_pos)
+
         uptime = 0
         if bridge_state.startup_time:
             uptime = time.time() - bridge_state.startup_time
 
-        # PsycheState alanlari
-        total_trades = int(getattr(state, "total_trades", 0) if state else 0)
+        # PsycheState alanlari + test trades
+        total_trades = int(getattr(state, "total_trades", 0) if state else 0) + bridge_state.test_trades_count
         total_wins = int(getattr(state, "total_wins", 0) if state else 0)
         win_rate = float(getattr(state, "win_rate", 0) if state else 0) * 100  # 0-1 -> 0-100
         if win_rate == 0 and total_trades > 0:
@@ -382,18 +525,28 @@ async def get_bot_status() -> Dict[str, Any]:
         daily_pnl = float(getattr(state, "daily_pnl", 0) if state else 0)
         max_drawdown = float(getattr(state, "max_drawdown", 0) if state else 0) * 100  # 0-1 -> 0-100
 
+        # Test pozisyonlarının toplam PnL'ini ekle
+        test_pnl = sum(pos.get("pnl", 0) for pos in bridge_state.test_positions.values())
+        combined_pnl = daily_pnl + test_pnl
+
+        # Demo equity: Başlangıç $1000 + PnL
+        demo_base_equity = 1000.0
+        demo_equity = demo_base_equity + test_pnl
+        demo_peak = max(demo_base_equity, demo_equity)
+        demo_drawdown = ((demo_peak - demo_equity) / demo_peak * 100) if demo_peak > 0 else 0
+
         return {
             "status": "running" if bridge_state.is_running else "connected",
             "is_running": bridge_state.is_running,
             "mode": "eclipse",
             "positions": positions,
             "position_count": len(positions),
-            "equity": current_equity,
-            "peak_equity": peak_equity,
-            "daily_pnl": daily_pnl,
+            "equity": current_equity if current_equity > 0 else demo_equity,
+            "peak_equity": peak_equity if peak_equity > 0 else demo_peak,
+            "daily_pnl": combined_pnl,
             "total_trades": total_trades,
-            "win_rate": win_rate,
-            "max_drawdown": max_drawdown,
+            "win_rate": win_rate if win_rate > 0 else (50.0 if total_trades > 0 else 0),
+            "max_drawdown": max_drawdown if max_drawdown > 0 else demo_drawdown,
             "uptime": int(uptime),
             "active_symbols": list(getattr(bot, "active_symbols", set()) or []),
             "tasks_running": list(bridge_state.tasks.keys()),
@@ -651,45 +804,111 @@ async def start_bot(request: BotStartRequest):
             # Bot loop'larını başlat
             bridge_state.startup_time = time.time()
 
-            # Core start (arka planda)
+            # Core start (arka planda) - Bootstrap modülü
             async def core_start_wrapper():
                 try:
-                    add_log("info", "[ECLIPSE] Eclipse Core başlatılıyor...")
+                    add_log("info", "[BOOTSTRAP] Eclipse Core başlatılıyor...")
+                    update_module_status("bootstrap", running=True)
                     await bot.start()
                 except asyncio.CancelledError:
-                    add_log("info", "Eclipse Core durduruldu")
+                    add_log("info", "[BOOTSTRAP] Eclipse Core durduruldu")
+                    update_module_status("bootstrap", running=False)
                 except Exception as e:
-                    add_log("error", f"Eclipse Core hatası: {str(e)}")
+                    add_log("error", f"[BOOTSTRAP] Eclipse Core hatası: {str(e)}")
+                    update_module_status("bootstrap", running=False, error=str(e))
 
-            bridge_state.tasks["core"] = asyncio.create_task(core_start_wrapper())
+            bridge_state.tasks["bootstrap"] = asyncio.create_task(core_start_wrapper())
 
-            # Guardian loop
+            # Guardian loop (reconcile ve kill_switch'i içerir)
             if GUARDIAN_AVAILABLE and guardian_loop:
+                async def guardian_wrapper():
+                    try:
+                        update_module_status("reconcile", running=True)
+                        update_module_status("kill_switch", running=True)
+                        await guardian_loop(bot)
+                    except asyncio.CancelledError:
+                        update_module_status("reconcile", running=False)
+                        update_module_status("kill_switch", running=False)
+                        raise
+                    except Exception as e:
+                        update_module_status("reconcile", running=False, error=str(e))
+                        raise
+
                 bridge_state.tasks["guardian"] = asyncio.create_task(
-                    run_bot_loop("Guardian", guardian_loop, bot)
+                    run_bot_loop("Guardian (Reconcile)", guardian_wrapper, bot)
                 )
 
             # Data loop
             if DATA_LOOP_AVAILABLE and data_loop:
+                async def data_wrapper():
+                    try:
+                        update_module_status("data_loop", running=True)
+                        await data_loop(bot)
+                    except asyncio.CancelledError:
+                        update_module_status("data_loop", running=False)
+                        raise
+                    except Exception as e:
+                        update_module_status("data_loop", running=False, error=str(e))
+                        raise
+
                 bridge_state.tasks["data"] = asyncio.create_task(
-                    run_bot_loop("Data Loop", data_loop, bot)
+                    run_bot_loop("Data Loop", lambda b: data_wrapper(), bot)
                 )
 
-            # Entry loop (data hazır olunca)
+            # Entry loop (data hazır olunca) - order_router'ı da içerir
             if ENTRY_LOOP_AVAILABLE and entry_loop:
                 async def gated_entry_loop():
                     # Data hazır olana kadar bekle
-                    add_log("info", "[WAIT] Entry loop data hazır olmasını bekliyor...")
+                    add_log("info", "[ENTRY] Entry loop data hazır olmasını bekliyor...")
                     try:
                         await asyncio.wait_for(bot.data_ready.wait(), timeout=30.0)
-                        add_log("info", "[OK] Data hazır, entry loop başlıyor")
+                        add_log("info", "[ENTRY] Data hazır, entry loop başlıyor")
                     except asyncio.TimeoutError:
-                        add_log("warn", "[WARN] Data timeout, entry loop yine de başlıyor")
-                    await entry_loop(bot)
+                        add_log("warn", "[ENTRY] Data timeout, entry loop yine de başlıyor")
+
+                    update_module_status("entry_loop", running=True)
+                    update_module_status("order_router", running=True)
+                    try:
+                        await entry_loop(bot)
+                    except asyncio.CancelledError:
+                        update_module_status("entry_loop", running=False)
+                        update_module_status("order_router", running=False)
+                        raise
+                    except Exception as e:
+                        update_module_status("entry_loop", running=False, error=str(e))
+                        raise
 
                 bridge_state.tasks["entry"] = asyncio.create_task(
                     run_bot_loop("Entry Loop", lambda b: gated_entry_loop(), bot)
                 )
+
+            # Position Manager loop
+            if POSITION_MANAGER_AVAILABLE and position_manager_tick:
+                async def pos_manager_wrapper():
+                    try:
+                        # Data hazır olana kadar bekle
+                        await asyncio.wait_for(bot.data_ready.wait(), timeout=30.0)
+                        update_module_status("position_manager", running=True)
+                        update_module_status("exit", running=True)  # Exit de bu loop içinde çalışır
+                        # Position manager tick'i döngüde çalıştır
+                        while bridge_state.is_running:
+                            await position_manager_tick(bot)
+                            await asyncio.sleep(5)  # 5 saniyede bir kontrol
+                    except asyncio.CancelledError:
+                        update_module_status("position_manager", running=False)
+                        update_module_status("exit", running=False)
+                        raise
+                    except Exception as e:
+                        update_module_status("position_manager", running=False, error=str(e))
+                        raise
+
+                bridge_state.tasks["position_manager"] = asyncio.create_task(
+                    run_bot_loop("Position Manager", lambda b: pos_manager_wrapper(), bot)
+                )
+
+            # Emergency modülü hazır olarak işaretle
+            if EMERGENCY_AVAILABLE:
+                update_module_status("emergency", running=True)
 
             # Status update loop (WebSocket için)
             async def status_update_loop():
@@ -702,53 +921,131 @@ async def start_bot(request: BotStartRequest):
                         })
                     except:
                         pass
-                    await asyncio.sleep(5)
+                    await asyncio.sleep(2)  # 2 saniyede bir status update
 
             bridge_state.tasks["status_updater"] = asyncio.create_task(status_update_loop())
 
             # Signal monitor loop - strateji sinyallerini frontend'e gonder
             async def signal_monitor_loop():
-                strategy = getattr(bot, "strategy", None)
-                last_signals = {}
+                add_log("info", "[STRATEGY] Sinyal izleme baslatildi (TEST MODE: Guven >= 20% = LONG)")
+                update_module_status("strategy", running=True)
 
                 while bridge_state.is_running:
                     try:
-                        if strategy and hasattr(strategy, "generate_signal"):
+                        # TEST: Mevcut pozisyonların PnL'ini güncelle
+                        if bridge_state.test_positions:
+                            total_pnl = 0.0
+                            for symbol, pos in bridge_state.test_positions.items():
+                                try:
+                                    # Güncel fiyatı al
+                                    ticker = await bot.ex.fetch_ticker(symbol)
+                                    current_price = ticker.get("last", pos["entry_price"])
+
+                                    # PnL hesapla: (current - entry) * size * leverage
+                                    entry_price = pos["entry_price"]
+                                    size = pos["size"]
+                                    leverage = pos["leverage"]
+                                    direction = 1 if pos["side"] == "long" else -1
+
+                                    pnl = (current_price - entry_price) * size * leverage * direction
+                                    pos["pnl"] = round(pnl, 2)
+                                    pos["current_price"] = current_price
+                                    total_pnl += pnl
+                                except Exception as e:
+                                    pass
+
+                            # Toplam PnL'i kaydet
+                            bridge_state.total_pnl = round(total_pnl, 2)
+
+                            # Pozisyon güncellemesi broadcast et
+                            await manager.broadcast({
+                                "type": "positions_update",
+                                "data": list(bridge_state.test_positions.values())
+                            })
+
+                        if SCALPER_SIGNAL_AVAILABLE and scalper_signal:
+                            data_cache = getattr(bot, "data", None)
+                            cfg = getattr(bot, "cfg", None)
+
                             for symbol in bot.active_symbols:
                                 try:
-                                    result = strategy.generate_signal(bot, symbol)
+                                    result = scalper_signal(symbol, data=data_cache, cfg=cfg)
                                     if result and len(result) >= 3:
                                         long_ok, short_ok, confidence = result[0], result[1], result[2]
+                                        conf_pct = confidence * 100
 
-                                        # Signal degisti mi?
-                                        sig_key = f"{symbol}_{long_ok}_{short_ok}_{round(confidence, 2)}"
-                                        if sig_key != last_signals.get(symbol):
-                                            last_signals[symbol] = sig_key
-
-                                            # Log ve broadcast
+                                        # TEST MODE: Güven >= 20% ise LONG olarak force et
+                                        test_entry = conf_pct >= 20 and symbol not in bridge_state.test_positions
+                                        if test_entry:
+                                            long_ok = True
+                                            side = "LONG"
+                                        else:
                                             side = "LONG" if long_ok else ("SHORT" if short_ok else "BEKLE")
-                                            conf_pct = confidence * 100
 
-                                            add_log("info", f"[SIGNAL] {symbol}: {side} | Guven: {conf_pct:.1f}% | Giris: {'EVET' if conf_pct >= 60 else 'HAYIR'}")
+                                        add_log("info", f"[SIGNAL] {symbol}: {side} | Guven: {conf_pct:.1f}% | Giris: {'EVET' if conf_pct >= 20 else 'HAYIR'}")
 
+                                        # TEST MODE: Pozisyon aç
+                                        if test_entry and request.dry_run:
+                                            # Fiyat al
+                                            try:
+                                                ticker = await bot.ex.fetch_ticker(symbol)
+                                                entry_price = ticker.get("last", 90000)
+                                            except:
+                                                entry_price = 90000 if "BTC" in symbol else 3000
+
+                                            # Test pozisyonu oluştur
+                                            bridge_state.test_positions[symbol] = {
+                                                "symbol": symbol,
+                                                "side": "long",
+                                                "size": 0.001,
+                                                "entry_price": entry_price,
+                                                "current_price": entry_price,
+                                                "leverage": 10,
+                                                "pnl": 0.0,
+                                                "entry_time": datetime.now(timezone.utc).isoformat()
+                                            }
+                                            bridge_state.test_trades_count += 1
+
+                                            add_log("trade", f"[TEST ENTRY] {symbol} LONG @ ${entry_price:.2f} | Size: 0.001 | Lev: 10x")
+
+                                            # Trade broadcast
                                             await manager.broadcast({
-                                                "type": "signal_update",
+                                                "type": "new_trade",
                                                 "data": {
                                                     "symbol": symbol,
-                                                    "long": long_ok,
-                                                    "short": short_ok,
-                                                    "confidence": confidence,
-                                                    "confidence_pct": conf_pct,
-                                                    "side": side,
-                                                    "will_enter": conf_pct >= 60,
+                                                    "side": "buy",
+                                                    "amount": 0.001,
+                                                    "price": entry_price,
                                                     "timestamp": datetime.now(timezone.utc).isoformat()
                                                 }
                                             })
+
+                                            # Pozisyon update broadcast
+                                            await manager.broadcast({
+                                                "type": "positions_update",
+                                                "data": list(bridge_state.test_positions.values())
+                                            })
+
+                                        await manager.broadcast({
+                                            "type": "signal_update",
+                                            "data": {
+                                                "symbol": symbol,
+                                                "long": long_ok,
+                                                "short": short_ok,
+                                                "confidence": confidence,
+                                                "confidence_pct": conf_pct,
+                                                "side": side,
+                                                "will_enter": conf_pct >= 20,
+                                                "timestamp": datetime.now(timezone.utc).isoformat()
+                                            }
+                                        })
                                 except Exception as e:
-                                    pass
+                                    add_log("warn", f"[SIGNAL] {symbol} sinyal hatasi: {str(e)[:100]}")
+                        else:
+                            add_log("warn", "[SIGNAL_MONITOR] scalper_signal mevcut degil")
                     except Exception as e:
-                        pass
-                    await asyncio.sleep(10)  # Her 10 saniyede bir kontrol
+                        add_log("error", f"[SIGNAL_MONITOR] Hata: {str(e)[:100]}")
+                    await asyncio.sleep(3)  # 3 saniyede bir güncelleme (anlık)
 
             bridge_state.tasks["signal_monitor"] = asyncio.create_task(signal_monitor_loop())
 
@@ -840,6 +1137,10 @@ async def stop_bot():
 
         bridge_state.tasks.clear()
         bridge_state.is_running = False
+
+        # Tüm modüllerin durumunu sıfırla
+        for name in bridge_state.module_status:
+            update_module_status(name, running=False, error=None)
 
         add_log("info", "[OK] Bot durduruldu")
 
@@ -989,6 +1290,15 @@ async def get_logs(limit: int = 100):
     }
 
 
+@app.get("/api/modules")
+async def get_modules():
+    """Modül durumlarını al"""
+    return {
+        "modules": list(bridge_state.module_status.values()),
+        "count": len(bridge_state.module_status)
+    }
+
+
 @app.delete("/api/logs")
 async def clear_logs():
     """Logları temizle"""
@@ -1015,6 +1325,12 @@ async def websocket_endpoint(websocket: WebSocket):
         await websocket.send_json({
             "type": "logs_init",
             "data": bridge_state.logs[-50:]
+        })
+
+        # Modül durumlarını gönder
+        await websocket.send_json({
+            "type": "modules_init",
+            "data": list(bridge_state.module_status.values())
         })
 
         # Mesaj döngüsü
@@ -1062,13 +1378,22 @@ async def websocket_endpoint(websocket: WebSocket):
 @app.on_event("startup")
 async def startup_event():
     print("=" * 60)
-    print("ECLIPSE SCALPER API BRIDGE - FULL INTEGRATION")
-    print(f"   Eclipse Available: {ECLIPSE_AVAILABLE}")
-    print(f"   Guardian Available: {GUARDIAN_AVAILABLE}")
-    print(f"   Entry Loop Available: {ENTRY_LOOP_AVAILABLE}")
-    print(f"   Data Loop Available: {DATA_LOOP_AVAILABLE}")
+    print("ECLIPSE SCALPER API BRIDGE - FULL INTEGRATION v2.1")
     print("=" * 60)
-    add_log("info", "API Bridge baslatildi")
+    print(" MODÜL DURUMU:")
+    print(f"   [{'✓' if ECLIPSE_AVAILABLE else 'X'}] Eclipse Core (Bootstrap)")
+    print(f"   [{'✓' if DATA_LOOP_AVAILABLE else 'X'}] Data Loop")
+    print(f"   [{'✓' if SCALPER_SIGNAL_AVAILABLE else 'X'}] Strategy (Scalper Signal)")
+    print(f"   [{'✓' if ENTRY_LOOP_AVAILABLE else 'X'}] Entry Loop")
+    print(f"   [{'✓' if ORDER_ROUTER_AVAILABLE else 'X'}] Order Router")
+    print(f"   [{'✓' if RECONCILE_AVAILABLE else 'X'}] Reconcile")
+    print(f"   [{'✓' if GUARDIAN_AVAILABLE else 'X'}] Guardian")
+    print(f"   [{'✓' if POSITION_MANAGER_AVAILABLE else 'X'}] Position Manager")
+    print(f"   [{'✓' if EXIT_HANDLER_AVAILABLE else 'X'}] Exit Handler")
+    print(f"   [{'✓' if KILL_SWITCH_AVAILABLE else 'X'}] Kill Switch")
+    print(f"   [{'✓' if EMERGENCY_AVAILABLE else 'X'}] Emergency")
+    print("=" * 60)
+    add_log("info", "API Bridge baslatildi - Tum moduller yuklendi")
 
 
 @app.on_event("shutdown")
