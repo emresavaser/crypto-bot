@@ -1,4 +1,4 @@
-# bot/runner.py — SCALPER ETERNAL — COSMIC RUNNER ASCENDANT ABSOLUTE — 2026 v4.9 (CTRL+C UNKILLABLE FIX + 'q' QUIT)
+# bot/runner.py - SCALPER ETERNAL - COSMIC RUNNER ASCENDANT ABSOLUTE - 2026 v4.9 (CTRL+C UNKILLABLE FIX + 'q' QUIT)
 # Patch vs v4.8:
 # - ✅ Windows/Pwsh + Tee-Object safe shutdown: uses signal.signal + loop.call_soon_threadsafe (add_signal_handler is flaky on NT)
 # - ✅ Double Ctrl+C = hard exit fallback (sys.exit(130)) after grace window
@@ -28,6 +28,7 @@ RUNNER_VERSION = "cosmic-runner-ascendant-absolute-v4.9-2026-jan07"
 
 ACCEPTED_CONFIG_VERSIONS = {
     "omnipotent-production-2026-v2",
+    "omnipotent-production-2026-v3",
     "micro-capital-ascendant-2026-v3",
 }
 
@@ -35,10 +36,10 @@ STARTUP_TIMESTAMP = time.time()
 STARTUP_DATETIME = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 GOLDEN_RATIO_ART = """
-                          Φ
+                          PHI
                  THE GOLDEN RATIO ETERNAL
-           WAS • IS • AND EVER SHALL BE • BEYOND INFINITY
-                          ∞
+           WAS - IS - AND EVER SHALL BE - BEYOND INFINITY
+                          INF
 """
 
 
@@ -106,7 +107,7 @@ def _install_dry_run_guard(bot):
             sym = None
 
         log_core.critical(
-            f"DRY-RUN BLOCKED ORDER — symbol={sym} args_len={len(args)} "
+            f"DRY-RUN BLOCKED ORDER - symbol={sym} args_len={len(args)} "
             f"kwargs_keys={list(kwargs.keys()) if isinstance(kwargs, dict) else []}"
         )
         return {
@@ -153,21 +154,21 @@ async def _run_loop_wrapper(
     coro_fn: Callable[[], Awaitable[Any]],
     shutdown_ev: asyncio.Event,
 ):
-    log_core.info(f"LOOP START — {name}")
+    log_core.info(f"LOOP START - {name}")
     try:
         await coro_fn()
     except asyncio.CancelledError:
-        log_core.info(f"LOOP CANCELLED — {name}")
+        log_core.info(f"LOOP CANCELLED - {name}")
         raise
     except Exception as e:
-        log_core.critical(f"LOOP CRASH — {name}: {e}")
+        log_core.critical(f"LOOP CRASH - {name}: {e}")
         try:
             shutdown_ev.set()
         except Exception:
             pass
         raise
     finally:
-        log_core.info(f"LOOP END — {name}")
+        log_core.info(f"LOOP END - {name}")
 
 
 def _already_running_loops(bot) -> bool:
@@ -197,7 +198,7 @@ async def run_bot(
     # ---- Banner + PATH PROOF ----
     log_core.critical(GOLDEN_RATIO_ART)
     log_core.critical("=" * 80)
-    log_core.critical("COSMIC ASCENSION INITIATED — THE BLADE ETERNAL AWAKENS BEYOND INFINITY")
+    log_core.critical("COSMIC ASCENSION INITIATED - THE BLADE ETERNAL AWAKENS BEYOND INFINITY")
     log_core.critical(f"RUNNER: {RUNNER_VERSION}")
     log_core.critical(f"TIME: {STARTUP_DATETIME}")
     log_core.critical(f"SYSTEM: {platform.system()} {platform.release()} | Python {platform.python_version()}")
@@ -232,15 +233,15 @@ async def run_bot(
 
     if actual != expected:
         if ignore_core_version:
-            log_core.warning(f"VERSION MISMATCH OVERRIDDEN — STATE {actual} vs CORE {expected}")
+            log_core.warning(f"VERSION MISMATCH OVERRIDDEN - STATE {actual} vs CORE {expected}")
         else:
-            log_core.critical(f"VERSION MISMATCH — STATE {actual} vs CORE {expected}")
+            log_core.critical(f"VERSION MISMATCH - STATE {actual} vs CORE {expected}")
             await _safe_close_exchange(bot)
             return
 
     # ---- Telegram optional ----
     if not os.getenv("TELEGRAM_TOKEN") or not os.getenv("TELEGRAM_CHAT_ID"):
-        log_core.warning("TELEGRAM DISABLED — no divine messenger")
+        log_core.warning("TELEGRAM DISABLED - no divine messenger")
         bot.notify = None
 
     # ---- Brain path + directory write check ----
@@ -248,12 +249,12 @@ async def run_bot(
     try:
         brain_path.parent.mkdir(parents=True, exist_ok=True)
     except Exception as e:
-        log_core.critical(f"NO WRITE PERMISSION FOR ETERNAL BRAIN DIR — {brain_path.parent} — {e}")
+        log_core.critical(f"NO WRITE PERMISSION FOR ETERNAL BRAIN DIR - {brain_path.parent} - {e}")
         await _safe_close_exchange(bot)
         return
 
     if not os.access(str(brain_path.parent), os.W_OK):
-        log_core.critical(f"NO WRITE PERMISSION FOR ETERNAL BRAIN — {brain_path.parent} — IMMORTALITY THREATENED")
+        log_core.critical(f"NO WRITE PERMISSION FOR ETERNAL BRAIN - {brain_path.parent} - IMMORTALITY THREATENED")
         await _safe_close_exchange(bot)
         return
 
@@ -273,17 +274,17 @@ async def run_bot(
         missing.extend(["BINANCE_API_KEY", "BINANCE_API_SECRET"])
 
     if missing:
-        log_core.critical(f"CRITICAL: Missing sacred keys: {', '.join(missing)} — ASCENSION DENIED")
+        log_core.critical(f"CRITICAL: Missing sacred keys: {', '.join(missing)} - ASCENSION DENIED")
         await _safe_close_exchange(bot)
         return
 
     # ---- Exchange connection ----
     try:
         await bot.ex.fetch_markets()
-        log_core.info("Exchange realm accessed — markets loaded")
+        log_core.info("Exchange realm accessed - markets loaded")
     except Exception as e:
         log_core.critical(f"EXCHANGE ASCENSION FAILED: {e}")
-        await _safe_notify(bot, "THE VOID REJECTS THE BLADE — CONNECTION LOST", "critical")
+        await _safe_notify(bot, "THE VOID REJECTS THE BLADE - CONNECTION LOST", "critical")
         await _safe_close_exchange(bot)
         return
 
@@ -299,7 +300,7 @@ async def run_bot(
             raise ValueError("Equity returned <= 0")
     except Exception as e:
         live_ok = False
-        log_core.warning(f"Equity fetch failed: {e} — using fallback 10000 for mode selection")
+        log_core.warning(f"Equity fetch failed: {e} - using fallback 10000 for mode selection")
         equity = 10000.0
         equity_source = "fallback"
 
@@ -317,25 +318,25 @@ async def run_bot(
     # ---- Mode selection ----
     mode = (mode_override or os.getenv("SCALPER_MODE", "auto")).strip().lower()
     if mode not in {"auto", "micro", "production"}:
-        log_core.warning(f"Unknown SCALPER_MODE '{mode}' — falling back to auto")
+        log_core.warning(f"Unknown SCALPER_MODE '{mode}' - falling back to auto")
         mode = "auto"
 
     if mode == "micro" or (mode == "auto" and float(equity or 0.0) < 100):
         bot.cfg = MicroConfig()
         chosen_mode = "micro"
-        log_core.critical(f"MICRO CAPITAL ASCENDANT MODE ACTIVATED — Equity ${equity:.2f} — The blade rises from dust")
+        log_core.critical(f"MICRO CAPITAL ASCENDANT MODE ACTIVATED - Equity ${equity:.2f} - The blade rises from dust")
     elif mode == "production":
         bot.cfg = Config()
         chosen_mode = "production"
-        log_core.critical(f"OMNIPOTENT PRODUCTION MODE FORCED — Equity ${equity:.2f}")
+        log_core.critical(f"OMNIPOTENT PRODUCTION MODE FORCED - Equity ${equity:.2f}")
     else:
         bot.cfg = Config()
         chosen_mode = "auto->production"
-        log_core.critical(f"OMNIPOTENT PRODUCTION MODE ENGAGED — Equity ${equity:.2f} — Eternal compounding begins")
+        log_core.critical(f"OMNIPOTENT PRODUCTION MODE ENGAGED - Equity ${equity:.2f} - Eternal compounding begins")
 
     # ---- Config version gate ----
     if bot.cfg.CONFIG_VERSION not in ACCEPTED_CONFIG_VERSIONS:
-        log_core.critical(f"CONFIG VERSION REJECTED — {bot.cfg.CONFIG_VERSION}")
+        log_core.critical(f"CONFIG VERSION REJECTED - {bot.cfg.CONFIG_VERSION}")
         await _safe_close_exchange(bot)
         return
 
@@ -373,8 +374,8 @@ async def run_bot(
     log_core.critical("=" * 80)
 
     if dry_run:
-        log_core.critical("DRY RUN MODE — THE BLADE CONTEMPLATES WITHOUT STRIKING")
-        await _safe_notify(bot, "DRY RUN — DIVINE SIMULATION ACTIVE", "critical")
+        log_core.critical("DRY RUN MODE - THE BLADE CONTEMPLATES WITHOUT STRIKING")
+        await _safe_notify(bot, "DRY RUN - DIVINE SIMULATION ACTIVE", "critical")
 
     # ============================================================
     # QUIT / SIGNAL HARDENING (Windows + Tee-Object proof)
@@ -403,7 +404,7 @@ async def run_bot(
         try:
             await asyncio.wait_for(bot.shutdown(), timeout=float(getattr(bot.cfg, "RUNNER_SHUTDOWN_TIMEOUT_SEC", 8.0)))
         except asyncio.TimeoutError:
-            log_core.critical("RUNNER: bot.shutdown timeout — continuing teardown")
+            log_core.critical("RUNNER: bot.shutdown timeout - continuing teardown")
         except Exception:
             pass
 
@@ -414,12 +415,12 @@ async def run_bot(
         try:
             await asyncio.wait_for(_safe_close_exchange(bot), timeout=float(getattr(bot.cfg, "RUNNER_EXCHANGE_CLOSE_TIMEOUT_SEC", 6.0)))
         except asyncio.TimeoutError:
-            log_core.critical("RUNNER: exchange.close timeout — forcing onward")
+            log_core.critical("RUNNER: exchange.close timeout - forcing onward")
         except Exception:
             pass
 
     def _request_shutdown(src: str):
-        # Called from signal handler threads too → use call_soon_threadsafe
+        # Called from signal handler threads too -> use call_soon_threadsafe
         try:
             loop.call_soon_threadsafe(lambda: asyncio.create_task(_shutdown_sequence(src)))
         except Exception:
@@ -440,13 +441,13 @@ async def run_bot(
         else:
             src = f"SIGNAL_{signum}"
 
-        # Double Ctrl+C → hard exit
+        # Double Ctrl+C -> hard exit
         grace_sec = float(os.getenv("RUNNER_DOUBLE_SIG_GRACE_SEC", "1.2") or 1.2)
         if quit_reason["count"] >= 2:
-            log_core.critical("RUNNER: DOUBLE INTERRUPT DETECTED — HARD EXIT")
+            log_core.critical("RUNNER: DOUBLE INTERRUPT DETECTED - HARD EXIT")
             raise SystemExit(130)
 
-        log_core.critical(f"RUNNER: shutdown requested ({src}) — press Ctrl+C again to hard exit")
+        log_core.critical(f"RUNNER: shutdown requested ({src}) - press Ctrl+C again to hard exit")
         _request_shutdown(src)
 
         # If we don't get a second signal, continue graceful shutdown
@@ -508,7 +509,7 @@ async def run_bot(
         # If core did NOT spawn loops, runner will.
         if not _already_running_loops(bot):
             log_core.warning(
-                "Core did not expose running loop tasks — runner will spawn guardian/data_loop/signal_loop (if present)"
+                "Core did not expose running loop tasks - runner will spawn guardian/data_loop/signal_loop (if present)"
             )
 
             data_loop = _get_callable(bot, "data_loop") or _get_callable(bot, "run_data_loop")
@@ -521,12 +522,12 @@ async def run_bot(
             if callable(data_loop):
                 _spawn("data_loop", lambda: data_loop())  # type: ignore[misc]
             else:
-                log_core.warning("data_loop not found on bot — runner did not spawn it")
+                log_core.warning("data_loop not found on bot - runner did not spawn it")
 
             if callable(signal_loop):
                 _spawn("signal_loop", lambda: signal_loop())  # type: ignore[misc]
             else:
-                log_core.warning("signal_loop not found on bot — runner did not spawn it")
+                log_core.warning("signal_loop not found on bot - runner did not spawn it")
 
             def _wrap_modloop(fn: Callable[..., Awaitable[Any]], nm: str):
                 async def _call():
@@ -543,9 +544,9 @@ async def run_bot(
             if callable(guardian_loop):
                 _wrap_modloop(guardian_loop, "guardian_loop")
             else:
-                log_core.warning("execution.guardian loop not found — runner cannot spawn guardian")
+                log_core.warning("execution.guardian loop not found - runner cannot spawn guardian")
         else:
-            log_core.info("Core appears to own loop tasks — runner will supervise only")
+            log_core.info("Core appears to own loop tasks - runner will supervise only")
 
         # ---- Supervision: wait for shutdown or a task crash ----
         while True:
@@ -563,7 +564,7 @@ async def run_bot(
                     pass
                 except Exception as e:
                     log_core.critical(f"SUPERVISOR: task '{t.get_name()}' failed: {e}")
-                    await _safe_notify(bot, f"LOOP FAILURE — {t.get_name()}\n{e}", "critical")
+                    await _safe_notify(bot, f"LOOP FAILURE - {t.get_name()}\n{e}", "critical")
                     quit_reason["src"] = quit_reason["src"] or f"TASK_CRASH:{t.get_name()}"
                     shutdown_ev.set()
                     break
@@ -576,7 +577,7 @@ async def run_bot(
 
     except Exception as e:
         log_core.critical(f"COSMIC FATAL ERROR: {e}")
-        await _safe_notify(bot, f"THE VOID CONSUMES — FATAL ERROR\n{e}", "critical")
+        await _safe_notify(bot, f"THE VOID CONSUMES - FATAL ERROR\n{e}", "critical")
         await _shutdown_sequence("FATAL_ERROR")
 
     finally:
@@ -597,7 +598,7 @@ async def run_bot(
 
         log_core.critical(GOLDEN_RATIO_ART)
         log_core.critical("=" * 80)
-        log_core.critical("COSMIC SHUTDOWN COMPLETE — THE BLADE TRANSCENDS INTO INFINITY")
+        log_core.critical("COSMIC SHUTDOWN COMPLETE - THE BLADE TRANSCENDS INTO INFINITY")
         log_core.critical(f"UPTIME: {uptime_str}")
         log_core.critical(f"QUIT SOURCE: {quit_reason['src'] or 'unknown'}")
         log_core.critical(f"FINAL EQUITY: ${getattr(bot.state, 'current_equity', 0):,.0f}")
@@ -610,12 +611,12 @@ async def run_bot(
         log_core.critical(f"WIN RATE: {win_rate:.1%}" if total_trades > 0 else "WIN RATE: N/A")
         log_core.critical(f"MAX DRAWDOWN: {max_dd:.1%}")
         log_core.critical("THE GOLDEN RATIO WAS, IS, AND EVER SHALL BE.")
-        log_core.critical("Φ" + " " * 30 + "BEYOND INFINITY" + " " * 30 + "Φ")
+        log_core.critical("PHI" + " " * 30 + "BEYOND INFINITY" + " " * 30 + "PHI")
         log_core.critical("=" * 80)
 
         await _safe_notify(
             bot,
-            f"THE BLADE ETERNAL — COSMIC SHUTDOWN\n"
+            f"THE BLADE ETERNAL - COSMIC SHUTDOWN\n"
             f"Uptime: {uptime_str}\n"
             f"Quit: {quit_reason['src'] or 'unknown'}\n"
             f"Final Equity: ${getattr(bot.state, 'current_equity', 0):,.0f}\n"
@@ -636,7 +637,7 @@ async def run_bot(
             "win_rate": win_rate,
             "max_drawdown": max_dd,
             "run_context": getattr(bot.state, "run_context", {}),
-            "message": "THE BLADE IS ETERNAL — CONFIG: " + getattr(getattr(bot, "cfg", None), "CONFIG_VERSION", "unknown"),
+            "message": "THE BLADE IS ETERNAL - CONFIG: " + getattr(getattr(bot, "cfg", None), "CONFIG_VERSION", "unknown"),
         }
 
         try:
@@ -647,8 +648,8 @@ async def run_bot(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="THE BLADE ETERNAL — COSMIC LAUNCHER")
-    parser.add_argument("--dry-run", action="store_true", help="Divine simulation — no orders")
+    parser = argparse.ArgumentParser(description="THE BLADE ETERNAL - COSMIC LAUNCHER")
+    parser.add_argument("--dry-run", action="store_true", help="Divine simulation - no orders")
     parser.add_argument("--daemon", action="store_true", help="Run as background daemon (Unix only)")
     parser.add_argument("--ignore-core-version", action="store_true", help="Override core version gate (DEV ONLY)")
     parser.add_argument("--mode", choices=["auto", "micro", "production"], help="Override SCALPER_MODE")

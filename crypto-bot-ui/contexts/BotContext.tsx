@@ -298,6 +298,22 @@ export function BotProvider({ children }: { children: ReactNode }) {
             case 'pong':
               // Ping response - ignore
               break;
+
+            case 'signal_update':
+              // Signal/confidence guncellemesi
+              const signal = message.data;
+              addLog('info', `${signal.symbol}: ${signal.side} | Guven: ${signal.confidence_pct?.toFixed(1)}% | Giris: ${signal.will_enter ? 'EVET' : 'HAYIR'}`);
+              setSignals(prev => {
+                const newSignal: Signal = {
+                  type: signal.side,
+                  price: 0,
+                  timestamp: signal.timestamp,
+                  reason: `Confidence: ${signal.confidence_pct?.toFixed(1)}%`,
+                  confidence: signal.confidence,
+                };
+                return [newSignal, ...prev.filter(s => s.timestamp !== signal.timestamp)].slice(0, 20);
+              });
+              break;
           }
         } catch (error) {
           console.error('WebSocket mesaj parse hatası:', error);

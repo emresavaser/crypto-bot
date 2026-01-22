@@ -1,7 +1,7 @@
-# strategies/eclipse_scalper.py — SCALPER ETERNAL — COSMIC SIGNAL ASCENDANT PRODUCTION — 2026 v3.0
+# strategies/eclipse_scalper.py - SCALPER ETERNAL - COSMIC SIGNAL ASCENDANT PRODUCTION - 2026 v3.0
 # Patch vs v2.9:
-# - ✅ NEW: SCALPER_DEBUG_LOOSE=1  → relax gates (controlled) to see entries sooner
-# - ✅ NEW: SCALPER_FORCE_ENTRY_TEST=1 → plumbing validation (max N per symbol; dry-run by default)
+# - ✅ NEW: SCALPER_DEBUG_LOOSE=1  -> relax gates (controlled) to see entries sooner
+# - ✅ NEW: SCALPER_FORCE_ENTRY_TEST=1 -> plumbing validation (max N per symbol; dry-run by default)
 # - ✅ NEW: Force-mode safety: blocked on live unless SCALPER_FORCE_ENTRY_ALLOW_LIVE=1
 # - ✅ Keeps: multi-key df lookup, adaptive MIN_BARS, DIAG, near-miss logs, SciPy optional peaks
 # - ✅ Guardian-safe: never raises
@@ -693,7 +693,7 @@ def scalper_signal(sym: str, data=None, cfg=None, *args, **kwargs) -> tuple[bool
             elif short_mom:
                 ha_mom_5m_ok = (mom_5m < -mom_5m_min)
 
-        # Trend (EMA200) — 5m + 15m if available
+        # Trend (EMA200) - 5m + 15m if available
         trend_long = trend_short = True
         if df_5m is not None and len(df_5m) >= 200 and "c" in df_5m.columns:
             ema_200_5m = float(df_5m["c"].ewm(span=200, adjust=False).mean().iloc[-1])

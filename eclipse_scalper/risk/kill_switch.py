@@ -1,4 +1,4 @@
-# risk/kill_switch.py — SCALPER ETERNAL — GLOBAL CIRCUIT BREAKER — 2026 v1.6 (TELEMETRY WIRED)
+# risk/kill_switch.py - SCALPER ETERNAL - GLOBAL CIRCUIT BREAKER - 2026 v1.6 (TELEMETRY WIRED)
 # Patch vs v1.5:
 # - ✅ Optional telemetry emits:
 #     - kill_switch.halt / clear
@@ -259,7 +259,7 @@ async def request_halt(bot, seconds: float, reason: str, severity: str = "critic
 
         _push_trip_history(bot, reason=str(reason or ""), seconds_eff=float(seconds_eff))
 
-        msg = f"KILL SWITCH HALT — {int(seconds_eff)}s | {str(reason or '')[:220]}"
+        msg = f"KILL SWITCH HALT - {int(seconds_eff)}s | {str(reason or '')[:220]}"
         log_core.critical(msg)
         await _safe_speak(bot, msg, severity)
 
@@ -300,7 +300,7 @@ async def request_halt(bot, seconds: float, reason: str, severity: str = "critic
 
         # Escalate: emergency flat
         if esc_flat_trips > 0 and do_flatten and trips_in_window >= esc_flat_trips:
-            why = f"ESCALATION: {trips_in_window} trips/{esc_window:.0f}s — {reason}"
+            why = f"ESCALATION: {trips_in_window} trips/{esc_window:.0f}s - {reason}"
             await _telemetry(
                 bot,
                 "kill_switch.escalate_flat",
@@ -318,13 +318,13 @@ async def request_halt(bot, seconds: float, reason: str, severity: str = "critic
 
         # Escalate: shutdown
         if esc_shutdown_trips > 0 and trips_in_window >= esc_shutdown_trips:
-            shutdown_reason = f"KILL_SWITCH ESCALATED SHUTDOWN — {trips_in_window} trips/{esc_window:.0f}s | {reason}"
+            shutdown_reason = f"KILL_SWITCH ESCALATED SHUTDOWN - {trips_in_window} trips/{esc_window:.0f}s | {reason}"
             _record_shutdown_reason(
                 bot,
                 reason=shutdown_reason,
                 source="risk.kill_switch",
             )
-            log_core.critical("KILL SWITCH → SHUTDOWN FLAG SET (escalation)")
+            log_core.critical("KILL SWITCH -> SHUTDOWN FLAG SET (escalation)")
 
             await _telemetry(
                 bot,
@@ -355,7 +355,7 @@ async def clear_halt(bot, note: str = "") -> None:
         km["last_eval_reason"] = ""
 
         if note:
-            log_core.info(f"KILL SWITCH CLEAR — {note}")
+            log_core.info(f"KILL SWITCH CLEAR - {note}")
 
         await _telemetry(
             bot,
@@ -490,7 +490,7 @@ async def _try_emergency_flat(bot, reason: str):
             fn = None
 
         if callable(fn):
-            log_core.critical(f"KILL SWITCH → EMERGENCY FLAT: {reason}")
+            log_core.critical(f"KILL SWITCH -> EMERGENCY FLAT: {reason}")
             await fn(bot)
     except Exception:
         pass
@@ -550,7 +550,7 @@ async def evaluate(bot) -> Tuple[bool, Optional[str]]:
         # ---------- basic equity sanity ----------
         eq = _equity(bot)
         if min_equity > 0 and eq > 0 and eq < min_equity:
-            reason = f"EQUITY BELOW MIN — ${eq:,.0f} < ${min_equity:,.0f}"
+            reason = f"EQUITY BELOW MIN - ${eq:,.0f} < ${min_equity:,.0f}"
             await request_halt(bot, cooldown, reason, "critical")
             km["last_check_ts"] = now
             return False, reason
@@ -560,7 +560,7 @@ async def evaluate(bot) -> Tuple[bool, Optional[str]]:
         dpnl = _daily_pnl(bot)
         if max_daily_loss_pct > 0 and sod > 0:
             if dpnl < -max_daily_loss_pct * sod:
-                reason = f"DAILY LOSS LIMIT — PnL ${dpnl:,.0f} (limit {max_daily_loss_pct:.1%})"
+                reason = f"DAILY LOSS LIMIT - PnL ${dpnl:,.0f} (limit {max_daily_loss_pct:.1%})"
                 await request_halt(bot, cooldown, reason, "critical")
                 km["last_check_ts"] = now
                 return False, reason
@@ -570,7 +570,7 @@ async def evaluate(bot) -> Tuple[bool, Optional[str]]:
         if max_drawdown_pct > 0 and peak > 0 and eq > 0:
             dd = (peak - eq) / peak
             if dd > max_drawdown_pct:
-                reason = f"DRAWDOWN LIMIT — DD {dd:.1%} (limit {max_drawdown_pct:.1%})"
+                reason = f"DRAWDOWN LIMIT - DD {dd:.1%} (limit {max_drawdown_pct:.1%})"
                 await request_halt(bot, cooldown, reason, "critical")
                 km["last_check_ts"] = now
                 return False, reason
@@ -586,7 +586,7 @@ async def evaluate(bot) -> Tuple[bool, Optional[str]]:
         else:
             if int(km.get("data_samples_ok", 0) or 0) >= max(1, min_data_samples):
                 if max_data_stale > 0 and age > max_data_stale:
-                    reason = f"DATA STALE — age {age:.0f}s > {max_data_stale:.0f}s"
+                    reason = f"DATA STALE - age {age:.0f}s > {max_data_stale:.0f}s"
                     await request_halt(bot, min(cooldown, 120.0), reason, "critical")
                     km["last_check_ts"] = now
                     return False, reason
@@ -594,7 +594,7 @@ async def evaluate(bot) -> Tuple[bool, Optional[str]]:
         # ---------- exchange health stale (optional hook) ----------
         if _exchange_health_stale(bot):
             max_stale = float(_cfg(bot, "KILL_MAX_EX_HEALTH_STALE_SEC", 0.0) or 0.0)
-            reason = f"EXCHANGE HEALTH STALE — no ping in > {max_stale:.0f}s"
+            reason = f"EXCHANGE HEALTH STALE - no ping in > {max_stale:.0f}s"
             await request_halt(bot, min(cooldown, 180.0), reason, "critical")
             km["last_check_ts"] = now
             return False, reason
@@ -613,14 +613,14 @@ async def evaluate(bot) -> Tuple[bool, Optional[str]]:
         km["last_check_ts"] = now
 
         if derr >= max_error_burst:
-            reason = f"API ERROR BURST — {derr} errors since last check"
+            reason = f"API ERROR BURST - {derr} errors since last check"
             await request_halt(bot, min(cooldown, 180.0), reason, "critical")
             return False, reason
 
         if dreq >= min_req_window:
             rate = (derr / max(1, dreq))
             if rate >= max_error_rate:
-                reason = f"API ERROR RATE — {rate:.0%} ({derr}/{dreq})"
+                reason = f"API ERROR RATE - {rate:.0%} ({derr}/{dreq})"
                 await request_halt(bot, min(cooldown, 180.0), reason, "critical")
                 return False, reason
 
@@ -655,7 +655,7 @@ async def evaluate(bot) -> Tuple[bool, Optional[str]]:
 
         if fail_closed and latch_sec > 0:
             try:
-                await request_halt(bot, float(latch_sec), f"EVALUATE ERROR LATCH — {e}", "critical")
+                await request_halt(bot, float(latch_sec), f"EVALUATE ERROR LATCH - {e}", "critical")
             except Exception:
                 pass
 
@@ -677,7 +677,7 @@ async def tick_kill_switch(bot) -> None:
 
 async def trade_allowed(bot) -> bool:
     """
-    CHEAP GATE — does NOT call evaluate().
+    CHEAP GATE - does NOT call evaluate().
     Your guardian loop should call tick_kill_switch() periodically.
     """
     try:

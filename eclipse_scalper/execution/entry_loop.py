@@ -1,4 +1,4 @@
-# execution/entry_loop.py — SCALPER ETERNAL — ENTRY LOOP — 2026 v1.6 (PENDING-LOCK + COOLDOWN + OPEN-ORDERS ADOPT)
+# execution/entry_loop.py - SCALPER ETERNAL - ENTRY LOOP - 2026 v1.6 (PENDING-LOCK + COOLDOWN + OPEN-ORDERS ADOPT)
 # Patch vs v1.5:
 # - ✅ FIX: Per-symbol "pending entry" lock so you cannot machine-gun entries (even if reconcile is lagging)
 # - ✅ FIX: Cooldown after ANY submitted entry attempt (success OR fail) to avoid rapid re-fire loops
@@ -671,7 +671,7 @@ async def entry_loop(bot) -> None:
     if not callable(sig_fn):
         log_core.warning("ENTRY_LOOP: strategy signal missing (strategies.eclipse_scalper.scalper_signal). Loop will idle.")
 
-    log_core.info("ENTRY_LOOP ONLINE — scanning for new entries")
+    log_core.info("ENTRY_LOOP ONLINE - scanning for new entries")
 
     while not shutdown_ev.is_set():
         try:
@@ -918,7 +918,7 @@ async def entry_loop(bot) -> None:
                         if "Margin is insufficient" in msg or '"code":-2019' in msg or "code': -2019" in msg:
                             until = _now() + max(60.0, float(margin_backoff_sec))
                             backoff_until_by_sym[k] = until
-                            log_entry.critical(f"ENTRY_LOOP: margin insufficient → backing off {k} for {int(margin_backoff_sec)}s")
+                            log_entry.critical(f"ENTRY_LOOP: margin insufficient -> backing off {k} for {int(margin_backoff_sec)}s")
                             # also block short-term so we don't keep hammering before backoff map is checked again
                             _set_pending(k, sec=max(10.0, pending_block_sec * 0.5))
                         else:
@@ -945,4 +945,4 @@ async def entry_loop(bot) -> None:
             log_entry.error(f"ENTRY_LOOP outer error: {e}")
             await asyncio.sleep(1.0)
 
-    log_core.critical("ENTRY_LOOP OFFLINE — shutdown flag set")
+    log_core.critical("ENTRY_LOOP OFFLINE - shutdown flag set")

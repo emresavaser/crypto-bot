@@ -22,7 +22,7 @@ if sys.platform == 'win32':
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from dotenv import load_dotenv
 
 # Eclipse Scalper path'ini ekle
@@ -161,9 +161,17 @@ async def broadcast_log(log_entry: dict):
 # ============== Pydantic Models ==============
 
 class ConnectRequest(BaseModel):
-    api_key: str
-    api_secret: str
+    api_key: str = Field(default=None)
+    api_secret: str = Field(default=None)
+    apiKey: str = Field(default=None)
+    apiSecret: str = Field(default=None)
     testnet: bool = False
+
+    def get_api_key(self) -> str:
+        return self.api_key or self.apiKey or ""
+
+    def get_api_secret(self) -> str:
+        return self.api_secret or self.apiSecret or ""
 
 
 class BotStartRequest(BaseModel):
@@ -470,7 +478,13 @@ async def get_status():
 async def connect_exchange(request: ConnectRequest):
     """Binance'e bağlan ve Eclipse bot'u hazırla"""
     try:
-        add_log("info", f"[CONNECT] Binance bağlantısı başlatılıyor... (Testnet: {request.testnet})")
+        api_key = request.get_api_key()
+        api_secret = request.get_api_secret()
+
+        if not api_key or not api_secret:
+            raise HTTPException(status_code=400, detail="API key ve secret gerekli")
+
+        add_log("info", f"[CONNECT] Binance baglantisi baslatiliyor... (Testnet: {request.testnet})")
 
         # Eclipse modülleri mevcut mu?
         if ECLIPSE_AVAILABLE and not request.testnet:
@@ -478,8 +492,8 @@ async def connect_exchange(request: ConnectRequest):
             add_log("info", "[ECLIPSE] Eclipse Scalper modu aktif")
 
             # Environment variables ayarla
-            os.environ["BINANCE_API_KEY"] = request.api_key
-            os.environ["BINANCE_API_SECRET"] = request.api_secret
+            os.environ["BINANCE_API_KEY"] = api_key
+            os.environ["BINANCE_API_SECRET"] = api_secret
 
             # Eclipse bot oluştur
             bot = EclipseEternal()
@@ -489,7 +503,7 @@ async def connect_exchange(request: ConnectRequest):
 
             # Exchange bağlantısı yap
             try:
-                await bot.ex.load_markets()
+                await bot.ex._ensure_markets_loaded()
                 balance = await bot.ex.fetch_balance()
                 usdt_balance = _extract_usdt_equity(balance)
                 add_log("info", f"[OK] Exchange bağlantısı başarılı - Bakiye: ${usdt_balance:.2f}")
@@ -532,8 +546,8 @@ async def connect_exchange(request: ConnectRequest):
             session = aiohttp.ClientSession(connector=connector)
 
             exchange = ccxt.binanceusdm({
-                'apiKey': request.api_key,
-                'secret': request.api_secret,
+                'apiKey': api_key,
+                'secret': api_secret,
                 'enableRateLimit': True,
                 'session': session,
                 'options': {
@@ -691,6 +705,52 @@ async def start_bot(request: BotStartRequest):
                     await asyncio.sleep(5)
 
             bridge_state.tasks["status_updater"] = asyncio.create_task(status_update_loop())
+
+            # Signal monitor loop - strateji sinyallerini frontend'e gonder
+            async def signal_monitor_loop():
+                strategy = getattr(bot, "strategy", None)
+                last_signals = {}
+
+                while bridge_state.is_running:
+                    try:
+                        if strategy and hasattr(strategy, "generate_signal"):
+                            for symbol in bot.active_symbols:
+                                try:
+                                    result = strategy.generate_signal(bot, symbol)
+                                    if result and len(result) >= 3:
+                                        long_ok, short_ok, confidence = result[0], result[1], result[2]
+
+                                        # Signal degisti mi?
+                                        sig_key = f"{symbol}_{long_ok}_{short_ok}_{round(confidence, 2)}"
+                                        if sig_key != last_signals.get(symbol):
+                                            last_signals[symbol] = sig_key
+
+                                            # Log ve broadcast
+                                            side = "LONG" if long_ok else ("SHORT" if short_ok else "BEKLE")
+                                            conf_pct = confidence * 100
+
+                                            add_log("info", f"[SIGNAL] {symbol}: {side} | Guven: {conf_pct:.1f}% | Giris: {'EVET' if conf_pct >= 60 else 'HAYIR'}")
+
+                                            await manager.broadcast({
+                                                "type": "signal_update",
+                                                "data": {
+                                                    "symbol": symbol,
+                                                    "long": long_ok,
+                                                    "short": short_ok,
+                                                    "confidence": confidence,
+                                                    "confidence_pct": conf_pct,
+                                                    "side": side,
+                                                    "will_enter": conf_pct >= 60,
+                                                    "timestamp": datetime.now(timezone.utc).isoformat()
+                                                }
+                                            })
+                                except Exception as e:
+                                    pass
+                    except Exception as e:
+                        pass
+                    await asyncio.sleep(10)  # Her 10 saniyede bir kontrol
+
+            bridge_state.tasks["signal_monitor"] = asyncio.create_task(signal_monitor_loop())
 
             bridge_state.is_running = True
 

@@ -1,4 +1,4 @@
-# execution/entry.py — SCALPER ETERNAL — THE BLADE ASCENDANT — 2026 v4.8b (TP HEDGE-SAFE + ROUTER EXIT HINTS)
+# execution/entry.py - SCALPER ETERNAL - THE BLADE ASCENDANT - 2026 v4.8b (TP HEDGE-SAFE + ROUTER EXIT HINTS)
 # Patch vs v4.8:
 # - ✅ Adds hedge_side_hint=pos_side to TP1/TP2 LIMIT exits (belt+suspenders for hedge mode)
 # - ✅ Adds hedge_side_hint=pos_side to emergency flatten (so router can enforce hedge exits)
@@ -224,7 +224,7 @@ def _skip(bot, k: str, side: str, reason: str):
 
     if throttle == 0.0 or (now - last) >= throttle:
         _SKIP_LAST[key] = now
-        log_entry.info(f"SKIP {k} {side.upper()} — {reason}")
+        log_entry.info(f"SKIP {k} {side.upper()} - {reason}")
 
 
 def _parse_funding_rate_any(x) -> float:
@@ -503,7 +503,7 @@ async def try_enter(bot, sym: str, side: str):
                 return
         except Exception as e:
             # Visibility only; behavior stays permissive (continues)
-            log_entry.warning(f"{k} trade_allowed() error — allowing by exception: {e}")
+            log_entry.warning(f"{k} trade_allowed() error - allowing by exception: {e}")
 
         _record_last_entry_attempt(bot, k)
 
@@ -511,7 +511,7 @@ async def try_enter(bot, sym: str, side: str):
             _skip(bot, k, side, "blacklisted")
             return
 
-        log_entry.info(f"SCALPER SCAN → {k} {side.upper()}")
+        log_entry.info(f"SCALPER SCAN -> {k} {side.upper()}")
 
         if k in bot.state.positions:
             _skip(bot, k, side, "already in position")
@@ -524,7 +524,7 @@ async def try_enter(bot, sym: str, side: str):
 
         equity = float(bot.state.current_equity or bot.state.start_of_day_equity or 0.0)
         if equity <= 0:
-            log_entry.warning(f"{k} equity unknown/zero — trading blocked")
+            log_entry.warning(f"{k} equity unknown/zero - trading blocked")
             return
 
         current_heat = portfolio_heat(bot.state.positions, equity)
@@ -692,7 +692,7 @@ async def try_enter(bot, sym: str, side: str):
         effective_heat_add = effective_risk_amount / equity
 
         if amount > original_amount:
-            log_entry.info(f"{k} min qty enforced — amount {original_amount:.6f} → {amount:.6f}")
+            log_entry.info(f"{k} min qty enforced - amount {original_amount:.6f} -> {amount:.6f}")
 
         if effective_risk_amount > risk_amount * 1.8:
             _skip(bot, k, side, f"min bump inflates risk ${effective_risk_amount:.2f} vs planned ${risk_amount:.2f}")
@@ -715,7 +715,7 @@ async def try_enter(bot, sym: str, side: str):
         pos_side = _position_side_for_trade(side) if _hedge_enabled(bot) else None
 
         try:
-            log_entry.critical(f"THE BLADE STRIKES → {side.upper()} {k}")
+            log_entry.critical(f"THE BLADE STRIKES -> {side.upper()} {k}")
 
             entry_type = str(getattr(cfg, "ENTRY_ORDER_TYPE", "MARKET") or "MARKET").upper()
             entry_side = "buy" if side == "long" else "sell"
@@ -768,11 +768,11 @@ async def try_enter(bot, sym: str, side: str):
                             created_ts=time.time(),
                             replace_price=float(limit_px),
                         )
-                        log_entry.info(f"ENTRY WATCH ARMED → {k} {side.upper()} oid={oid}")
+                        log_entry.info(f"ENTRY WATCH ARMED -> {k} {side.upper()} oid={oid}")
                     except Exception:
                         pass
 
-                log_entry.info(f"LIMIT ENTRY PLACED → {k} {side.upper()} qty={amount:.6f} px={limit_px:.6f}")
+                log_entry.info(f"LIMIT ENTRY PLACED -> {k} {side.upper()} qty={amount:.6f} px={limit_px:.6f}")
                 return
 
             # MARKET entry (default)
@@ -799,7 +799,7 @@ async def try_enter(bot, sym: str, side: str):
 
             req_amt = max(float(amount), 1e-12)
             if (filled / req_amt) < cfg.MIN_FILL_RATIO:
-                _skip(bot, k, side, f"partial fill {filled/req_amt:.1%} < {cfg.MIN_FILL_RATIO:.1%} — flatten")
+                _skip(bot, k, side, f"partial fill {filled/req_amt:.1%} < {cfg.MIN_FILL_RATIO:.1%} - flatten")
                 ok = await _emergency_flatten(
                     bot, sym_raw, side, float(filled), "Partial fill below MIN_FILL_RATIO", k, pos_side=pos_side
                 )
@@ -812,7 +812,7 @@ async def try_enter(bot, sym: str, side: str):
 
             slippage_pct = abs(entry_price - ref_px) / ref_px if ref_px > 0 else 0.0
             if slippage_pct > cfg.SLIPPAGE_MAX_PCT:
-                _skip(bot, k, side, f"slippage {slippage_pct:.2%} > {cfg.SLIPPAGE_MAX_PCT:.2%} — flatten")
+                _skip(bot, k, side, f"slippage {slippage_pct:.2%} > {cfg.SLIPPAGE_MAX_PCT:.2%} - flatten")
                 await _emergency_flatten(bot, sym_raw, side, float(filled), "Slippage exceeded", k, pos_side=pos_side)
                 return
 
@@ -917,7 +917,7 @@ async def try_enter(bot, sym: str, side: str):
                     )
                     if not ok:
                         log_entry.warning(
-                            f"{k} trailing skipped (fallbacks exhausted) — hard stop + TPs still active"
+                            f"{k} trailing skipped (fallbacks exhausted) - hard stop + TPs still active"
                         )
                 else:
                     log_entry.warning(f"{k} trailing skipped (amount {remaining:.6f} < min {min_amt:.6f})")
@@ -938,7 +938,7 @@ async def try_enter(bot, sym: str, side: str):
             except Exception as pe:
                 log_entry.warning(f"Brain save failed: {pe}")
 
-            log_entry.critical(f"SCALPER {side.upper()} {k} ASCENDED — MANAGEMENT ACTIVE")
+            log_entry.critical(f"SCALPER {side.upper()} {k} ASCENDED - MANAGEMENT ACTIVE")
 
         except Exception as e:
             log_entry.critical(f"SCALPER FAILED {k} {side.upper()}: {e}")

@@ -1,14 +1,14 @@
-# guardian.py — SCALPER ETERNAL — COSMIC GUARDIAN ASCENDANT PRODUCTION — SMALL CAPITAL QUICK PROFIT MODE — 2026 v2.2
+# guardian.py - SCALPER ETERNAL - COSMIC GUARDIAN ASCENDANT PRODUCTION - SMALL CAPITAL QUICK PROFIT MODE - 2026 v2.2
 # Dated: January 03, 2026
 # Philosophy: Elite protection for manual perpetual positions on tiny accounts ($30–$50).
-# Prioritizes ultra-quick small absolute profit capture ($1 → $2 → $3 tiers), ironclad loss guards,
-# proper order management, and full config integration. No aggressive hacks — pure disciplined preservation.
+# Prioritizes ultra-quick small absolute profit capture ($1 -> $2 -> $3 tiers), ironclad loss guards,
+# proper order management, and full config integration. No aggressive hacks - pure disciplined preservation.
 #
 # Key fixes & enhancements in v2.2 (over v2.1):
-# • Removed fetch_position_mode() call — CosmicExchangeOracle lacks this method (only set_position_mode exists)
+# - Removed fetch_position_mode() call - CosmicExchangeOracle lacks this method (only set_position_mode exists)
 #   Reverted to unconditional hedge mode activation as in original code (wrapper likely logs "already active")
-# • Minor logging tweak for hedge mode activation
-# • All previous v2.1 robustness (safe_float, staged profit scaling, dust avoidance, etc.) preserved
+# - Minor logging tweak for hedge mode activation
+# - All previous v2.1 robustness (safe_float, staged profit scaling, dust avoidance, etc.) preserved
 
 import asyncio
 import time
@@ -28,12 +28,12 @@ cfg = Config()
 
 commander = Notifier(token=os.getenv('TELEGRAM_TOKEN'), chat_id=os.getenv('TELEGRAM_CHAT_ID')) if os.getenv('TELEGRAM_TOKEN') else None
 
-# SMALL CAPITAL MODE — Absolute dollar profit targets (quick scalping style)
+# SMALL CAPITAL MODE - Absolute dollar profit targets (quick scalping style)
 SMALL_CAPITAL_MODE = True
 PROFIT_TARGETS_DOLLARS = [
-    (1.0, 0.4),   # +$1 profit → close 40% of current position
-    (2.0, 0.3),   # +$2 profit → close 30% of remaining
-    (3.0, 1.0),   # +$3 profit → close remaining 100%
+    (1.0, 0.4),   # +$1 profit -> close 40% of current position
+    (2.0, 0.3),   # +$2 profit -> close 30% of remaining
+    (3.0, 1.0),   # +$3 profit -> close remaining 100%
 ]
 
 def safe_float(d, key, default=0.0):
@@ -54,7 +54,7 @@ class EclipseGuardian:
         self.session_peak_equity = 0.0
         self.protection_actions = []
         self.running = True
-        # Track profit tier status per symbol — '1'/'2'/'3' for $1/$2/$3 tiers
+        # Track profit tier status per symbol - '1'/'2'/'3' for $1/$2/$3 tiers
         self.profit_tiers_taken = defaultdict(lambda: {'1': False, '2': False, '3': False})
 
     async def send_divine_message(self, message: str, priority: str = 'critical'):
@@ -98,9 +98,9 @@ class EclipseGuardian:
             restored += 1
 
         if restored:
-            await self.send_divine_message(f"GUARDIAN RESURRECTION — {restored} manual positions restored")
+            await self.send_divine_message(f"GUARDIAN RESURRECTION - {restored} manual positions restored")
         else:
-            log_core.info("GUARDIAN SCAN — No manual positions found to restore")
+            log_core.info("GUARDIAN SCAN - No manual positions found to restore")
 
     async def apply_management(self):
         positions = await self.bot.ex.fetch_positions()
@@ -145,7 +145,7 @@ class EclipseGuardian:
                                     params={'reduceOnly': True}
                                 )
                                 await self.send_divine_message(
-                                    f"QUICK PROFIT TIER ${dollars} HIT {internal_sym} — "
+                                    f"QUICK PROFIT TIER ${dollars} HIT {internal_sym} - "
                                     f"Closed {portion:.0%} (${unrealized_pnl:.2f} unrealized)"
                                 )
                                 self.profit_tiers_taken[internal_sym][tier_key] = True
@@ -180,7 +180,7 @@ class EclipseGuardian:
                     )
                     state_pos.hard_stop_order_id = new_stop.get('id')
                     state_pos.breakeven_moved = True
-                    await self.send_divine_message(f"BREAKEVEN ASCENDED {internal_sym} — Stop moved to +{buffer_pct:.1f}%")
+                    await self.send_divine_message(f"BREAKEVEN ASCENDED {internal_sym} - Stop moved to +{buffer_pct:.1f}%")
                 except Exception as e:
                     await self.send_divine_message(f"Breakeven move failed {internal_sym}: {e}")
 
@@ -201,7 +201,7 @@ class EclipseGuardian:
                         }
                     )
                     state_pos.trailing_active = True
-                    await self.send_divine_message(f"TRAILING STOP ACTIVATED {internal_sym} — {callback_rate/100:.1f}% callback")
+                    await self.send_divine_message(f"TRAILING STOP ACTIVATED {internal_sym} - {callback_rate/100:.1f}% callback")
                 except Exception as e:
                     await self.send_divine_message(f"Trailing activation failed {internal_sym}: {e}")
 
@@ -225,14 +225,14 @@ class EclipseGuardian:
                 if peak > 0:
                     drop = (peak - unrealized) / peak
                     if drop > cfg.VELOCITY_DRAWDOWN_PCT:
-                        await self.send_divine_message(f"VELOCITY BREACH {internal_sym} ({drop:.1%}) — EMERGENCY FLAT")
+                        await self.send_divine_message(f"VELOCITY BREACH {internal_sym} ({drop:.1%}) - EMERGENCY FLAT")
                         await emergency_flat(self.bot)
 
     async def run(self):
-        await self.send_divine_message("COSMIC GUARDIAN ASCENDANT AWAKENED — Small-capital quick-profit protection engaged")
+        await self.send_divine_message("COSMIC GUARDIAN ASCENDANT AWAKENED - Small-capital quick-profit protection engaged")
         await self.bot.ex.fetch_markets()
         
-        # Unconditional hedge mode activation (as in original code — wrapper likely detects/logs "already active")
+        # Unconditional hedge mode activation (as in original code - wrapper likely detects/logs "already active")
         await self.bot.ex.set_position_mode(True)
 
         await self.load_manual_positions()
@@ -259,7 +259,7 @@ class EclipseGuardian:
                 # Session drawdown protection
                 session_dd = (self.session_peak_equity - total) / self.session_peak_equity if self.session_peak_equity > 0 else 0
                 if session_dd > cfg.SESSION_EQUITY_PEAK_PROTECTION_PCT:
-                    await self.send_divine_message(f"SESSION DD BREACH ({session_dd:.1%}) — EMERGENCY FLAT")
+                    await self.send_divine_message(f"SESSION DD BREACH ({session_dd:.1%}) - EMERGENCY FLAT")
                     await emergency_flat(self.bot)
 
                 # Daily reset
@@ -269,11 +269,11 @@ class EclipseGuardian:
                     self.bot.state.current_day = today
                     self.session_peak_equity = total
                     self.velocity_windows.clear()
-                    await self.send_divine_message("NEW DAY — Protection resets applied")
+                    await self.send_divine_message("NEW DAY - Protection resets applied")
 
                 self.bot.state.daily_pnl = total - self.bot.state.start_of_day_equity
                 if self.bot.state.daily_pnl < -cfg.MAX_DAILY_LOSS_PCT * self.bot.state.start_of_day_equity / 100:
-                    await self.send_divine_message("DAILY LOSS BREACH — EMERGENCY FLAT")
+                    await self.send_divine_message("DAILY LOSS BREACH - EMERGENCY FLAT")
                     await emergency_flat(self.bot)
 
                 # Core management
@@ -297,4 +297,4 @@ if __name__ == "__main__":
     try:
         asyncio.run(guardian.run())
     except KeyboardInterrupt:
-        log_core.critical("GUARDIAN INTERRUPTED — Shutting down gracefully")
+        log_core.critical("GUARDIAN INTERRUPTED - Shutting down gracefully")

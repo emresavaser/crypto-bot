@@ -7,7 +7,7 @@ cfg = Config()
 
 async def manage_position_omega(bot, sym: str, pos, confidence: float):
     """
-    v17 — OMEGA PROTOCOL MANAGEMENT
+    v17 - OMEGA PROTOCOL MANAGEMENT
     - 3-tier partial profits
     - ATR-adaptive trailing stop
     - Smart re-entry on strong pullbacks
@@ -25,7 +25,7 @@ async def manage_position_omega(bot, sym: str, pos, confidence: float):
     tiers_taken = 0
     trailing_active = False
 
-    log_entry.info(f"OMEGA MANAGEMENT ACTIVE → {sym} {side.upper()} | Confidence {confidence:.2f}")
+    log_entry.info(f"OMEGA MANAGEMENT ACTIVE -> {sym} {side.upper()} | Confidence {confidence:.2f}")
 
     while sym in bot.state.positions:
         await asyncio.sleep(13)
@@ -64,7 +64,7 @@ async def manage_position_omega(bot, sym: str, pos, confidence: float):
                     params={'callbackRate': round(trail_pct * 100, 2), 'reduceOnly': True}
                 )
                 trailing_active = True
-                log_entry.info(f"OMEGA TRAILING ACTIVATED → {sym} | Rate: {trail_pct:.1f}% | R: {pnl_r:.1f}")
+                log_entry.info(f"OMEGA TRAILING ACTIVATED -> {sym} | Rate: {trail_pct:.1f}% | R: {pnl_r:.1f}")
 
         except Exception as e:
             log_entry.error(f"Omega management error {sym}: {e}")
@@ -82,6 +82,6 @@ async def _take_profit(bot, sym: str, amount: float, price: float, reason: str):
             f"Remaining: {abs(pos.size):.6f}",
             'critical'
         )
-        log_entry.info(f"PROFIT TAKEN → {sym} | {reason} | Price {price:.5f}")
+        log_entry.info(f"PROFIT TAKEN -> {sym} | {reason} | Price {price:.5f}")
     except Exception as e:
         log_entry.error(f"Profit take failed {sym}: {e}")

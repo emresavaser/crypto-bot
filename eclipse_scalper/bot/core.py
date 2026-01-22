@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# bot/core.py — SCALPER ETERNAL — GOD-EMPEROR CORE — 2026 v4.8 (RUNNER-COHERENT + DATA_READY + ENV SYMBOL RESPECT)
+# bot/core.py - SCALPER ETERNAL - GOD-EMPEROR CORE - 2026 v4.8 (RUNNER-COHERENT + DATA_READY + ENV SYMBOL RESPECT)
 
 from __future__ import annotations
 
@@ -323,7 +323,7 @@ class EclipseEternal:
                     if want in norm_to_info:
                         chosen.append(want)
                 if not chosen:
-                    log_core.critical("MICRO_SYMBOL_WHITELIST set but none matched — falling back")
+                    log_core.critical("MICRO_SYMBOL_WHITELIST set but none matched - falling back")
 
             if not chosen:
                 all_norm = list(norm_to_info.keys())
@@ -339,7 +339,7 @@ class EclipseEternal:
                 ranked = sorted(all_norm, key=_rank_key, reverse=True)
                 chosen = ranked[:max(1, int(limit))]
 
-                log_core.critical(f"DISCOVERY — {len(chosen)} perpetuals (limit={limit}, micro={_is_micro_mode(self.cfg)})")
+                log_core.critical(f"DISCOVERY - {len(chosen)} perpetuals (limit={limit}, micro={_is_micro_mode(self.cfg)})")
 
             self.active_symbols = set(chosen)
             for k in self.active_symbols:
@@ -354,7 +354,7 @@ class EclipseEternal:
                 self.min_amounts[k] = m if m > 0 else 0.0
 
         except Exception as e:
-            log_core.critical(f"Dynamic discovery failed: {e} — fallback invoked")
+            log_core.critical(f"Dynamic discovery failed: {e} - fallback invoked")
             self.active_symbols = set(FALLBACK_SYMBOLS)
             for sym in self.active_symbols:
                 self.min_amounts[sym] = 0.0
@@ -372,7 +372,7 @@ class EclipseEternal:
         except Exception:
             pass
 
-        log_core.critical(f"GOD-EMPEROR CORE AWAKENED — VERSION {CORE_VERSION}")
+        log_core.critical(f"GOD-EMPEROR CORE AWAKENED - VERSION {CORE_VERSION}")
 
         # default: do NOT spawn internal watchers (bootstrap/guardian owns supervision)
         spawn_internal = bool(getattr(self.cfg, "CORE_SPAWN_INTERNAL_WATCHERS", False) or False)
@@ -397,7 +397,7 @@ class EclipseEternal:
 
         except Exception as e:
             log_core.critical(f"Ascension failed: {e}")
-            await self.speak("ASCENSION FAILED — CONNECTION/INIT ERROR", "critical")
+            await self.speak("ASCENSION FAILED - CONNECTION/INIT ERROR", "critical")
             return
 
         # Load cache + brain
@@ -423,7 +423,7 @@ class EclipseEternal:
             pass
 
         if restored:
-            log_brain.critical(f"BRAIN RESURRECTED — {len(self.state.positions)} positions reborn")
+            log_brain.critical(f"BRAIN RESURRECTED - {len(self.state.positions)} positions reborn")
         else:
             log_brain.info("Fresh consciousness")
 
@@ -463,9 +463,9 @@ class EclipseEternal:
         if spawn_internal:
             self._track_task("watcher", self._safe_loop("watcher", self._watcher_loop()))
             self._track_task("cache_saver", self._safe_loop("cache_saver", self._cache_saver_loop()))
-            log_core.critical("CORE ONLINE — internal watcher loops spawned")
+            log_core.critical("CORE ONLINE - internal watcher loops spawned")
         else:
-            log_core.critical("CORE ONLINE — runner-supervised mode (no internal watcher loops)")
+            log_core.critical("CORE ONLINE - runner-supervised mode (no internal watcher loops)")
 
         # keep alive until shutdown (useful if start() is used as entrypoint)
         while not self._shutdown.is_set():
@@ -484,7 +484,7 @@ class EclipseEternal:
 
         # Start polling tasks using CANONICAL symbols
         for k in sorted(self.active_symbols):
-            log_data.info(f"Polling → {k}")
+            log_data.info(f"Polling -> {k}")
             self._track_task(
                 f"ohlcv:{k}",
                 self._safe_loop(
@@ -550,7 +550,7 @@ class EclipseEternal:
             group_exposure = sum(expo.get(s, 0.0) for s in symbols)
             heat = group_exposure / eq if eq > 0 else 0.0
             if heat > cap:
-                log_core.warning(f"Correlation heat {group}: {heat:.1%} — blocked")
+                log_core.warning(f"Correlation heat {group}: {heat:.1%} - blocked")
                 return False
 
         return True
@@ -638,7 +638,7 @@ class EclipseEternal:
                 if total > float(self.state.peak_equity or 0.0):
                     self.state.peak_equity = total
                     log_core.critical(f"NEW PEAK: ${total:,.0f}")
-                    await self.speak(f"NEW PEAK — ${total:,.0f}", "critical")
+                    await self.speak(f"NEW PEAK - ${total:,.0f}", "critical")
 
                 today = datetime.now(timezone.utc).date()
                 if today != self.state.current_day:

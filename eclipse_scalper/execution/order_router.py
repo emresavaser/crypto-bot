@@ -1,6 +1,6 @@
-# execution/order_router.py — SCALPER ETERNAL — ORDER ROUTER — 2026 v2.1 (BINANCE CLOSEPOSITION + REDUCEONLY FIX)
+# execution/order_router.py - SCALPER ETERNAL - ORDER ROUTER - 2026 v2.1 (BINANCE CLOSEPOSITION + REDUCEONLY FIX)
 # Patch vs v2.0:
-# - ✅ FIX: Binance futures STOP/TP with closePosition=True MUST still pass amount to ccxt (amount is required arg) → we send amount=0.0
+# - ✅ FIX: Binance futures STOP/TP with closePosition=True MUST still pass amount to ccxt (amount is required arg) -> we send amount=0.0
 # - ✅ FIX: Validation no longer blocks amount<=0 when closePosition=True (router used to block it)
 # - ✅ FIX: If closePosition=True, router strips reduceOnly ALWAYS (Binance -1106 “reduceonly not required”)
 # - ✅ HARDEN: Adds retry variant that auto-removes reduceOnly when exchange complains (even if caller set it)
@@ -700,7 +700,7 @@ async def create_order(
     if _first_live_safe_enabled(bot) and (not is_exit):
         allow = _allowed_symbols_set(bot)
         if allow is not None and k not in allow:
-            log_entry.critical(f"FIRST_LIVE_SAFE BLOCKED → symbol not allowlisted: k={k} allow={sorted(list(allow))}")
+            log_entry.critical(f"FIRST_LIVE_SAFE BLOCKED -> symbol not allowlisted: k={k} allow={sorted(list(allow))}")
             if callable(emit):
                 _telemetry_task(
                     emit(bot, "order.blocked", data={"k": k, "why": "first_live_symbol_not_allowed"}, symbol=k, level="critical")
@@ -728,7 +728,7 @@ async def create_order(
             ps = _infer_position_side(hedge_side_hint)
             if not ps:
                 log_entry.critical(
-                    f"ROUTER BLOCKED → hedge exit requires hedge_side_hint LONG/SHORT | k={k} raw={sym_raw} type={type_norm} side={side_l} reduceOnly={p.get('reduceOnly')} closePosition={p.get('closePosition')}"
+                    f"ROUTER BLOCKED -> hedge exit requires hedge_side_hint LONG/SHORT | k={k} raw={sym_raw} type={type_norm} side={side_l} reduceOnly={p.get('reduceOnly')} closePosition={p.get('closePosition')}"
                 )
                 if callable(emit):
                     _telemetry_task(
@@ -805,7 +805,7 @@ async def create_order(
 
     if _is_dry_run(bot):
         log_entry.critical(
-            f"DRY_RUN ROUTER BLOCKED → k={k} raw={sym_raw} {type_norm} {side_l} amount={amount} price={price} params={p}"
+            f"DRY_RUN ROUTER BLOCKED -> k={k} raw={sym_raw} {type_norm} {side_l} amount={amount} price={price} params={p}"
         )
         return _dry_run_order_stub(sym_raw, type_norm, side_l, amount, price, p)
 
@@ -855,7 +855,7 @@ async def create_order(
 
     if not ok:
         log_entry.critical(
-            f"ROUTER BLOCKED BY EXCHANGE FILTERS → k={k} raw={sym_raw} type={type_norm} side={side_l} amount={amount_for_validation} price={price} why={why}"
+            f"ROUTER BLOCKED BY EXCHANGE FILTERS -> k={k} raw={sym_raw} type={type_norm} side={side_l} amount={amount_for_validation} price={price} why={why}"
         )
         if callable(emit):
             _telemetry_task(
@@ -890,7 +890,7 @@ async def create_order(
                 notion = _safe_float(amt_prec, 0.0) * float(px_for_cap)
                 if notion > cap:
                     log_entry.critical(
-                        f"FIRST_LIVE_SAFE BLOCKED → notional cap exceeded: k={k} raw={sym_raw} notional={notion:.4f} cap={cap}"
+                        f"FIRST_LIVE_SAFE BLOCKED -> notional cap exceeded: k={k} raw={sym_raw} notional={notion:.4f} cap={cap}"
                     )
                     if callable(emit):
                         _telemetry_task(
@@ -1007,7 +1007,7 @@ async def create_order(
             )
         )
 
-    log_entry.error(f"ORDER ROUTER FAILED → k={k} raw={sym_raw} {type_norm} {side_l} amount={amount} price={price} err={last_err}")
+    log_entry.error(f"ORDER ROUTER FAILED -> k={k} raw={sym_raw} {type_norm} {side_l} amount={amount} price={price} err={last_err}")
     return None
 
 
